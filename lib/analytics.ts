@@ -1,4 +1,5 @@
-import { Checkin, MetricKey, Race, RaceSummary, Thresholds } from '@/types/models';
+import { Checkin, IntakeBand, MetricKey, Race, RaceSummary, Thresholds } from '@/types/models';
+import { THRESHOLD_BANDS } from './constants';
 import { round } from './utils';
 
 export function getRaceEndTime(race: Race, checkins: Checkin[]) {
@@ -43,17 +44,52 @@ export function getMetricRatePerHour(race: Race, checkins: Checkin[], metric: Me
   return getHourlyRate(getMetricTotal(checkins, metric), getDurationHours(race, checkins));
 }
 
-export function getThresholdStatus(valuePerHour: number, metric: MetricKey, thresholds: Thresholds) {
+function getTargetMidpoint(metric: MetricKey, thresholds: Thresholds): number | null {
   const threshold = thresholds[metric];
-  if (threshold.minPerHour !== null && valuePerHour < threshold.minPerHour) return 'low';
-  if (threshold.maxPerHour !== null && valuePerHour > threshold.maxPerHour) return 'high';
-  return 'ok';
+  const { minPerHour, maxPerHour } = threshold;
+
+  if (minPerHour !== null && maxPerHour !== null) {
+    return (minPerHour + maxPerHour) / 2;
+  }
+
+  if (minPerHour !== null) return minPerHour;
+  if (maxPerHour !== null) return maxPerHour;
+
+  return null;
 }
 
-export function getStatusLabel(status: 'low' | 'high' | 'ok') {
-  if (status === 'low') return 'Below range';
-  if (status === 'high') return 'Above range';
-  return 'In range';
+export function getThresholdRatio(valuePerHour: number, metric: MetricKey, thresholds: Thresholds): number | null {
+  const target = getTargetMidpoint(metric, thresholds);
+  if (!target || target <= 0) return null;
+  return round(valuePerHour / target, 2);
+}
+
+export function getIntakeBand(valuePerHour: number, metric: MetricKey, thresholds: Thresholds): IntakeBand {
+  const ratio = getThresholdRatio(valuePerHour, metric, thresholds);
+  if (ratio === null) return 'no target';
+
+  if (ratio < THRESHOLD_BANDS.CRITICALLY_LOW) return 'critically low';
+  if (ratio < THRESHOLD_BANDS.MODERATELY_LOW) return 'moderately low';
+  if (ratio <= THRESHOLD_BANDS.ON_TARGET) return 'on target';
+  if (ratio <= THRESHOLD_BANDS.MODERATELY_HIGH) return 'moderately high';
+  return 'critically high';
+}
+
+export function getBandLabel(band: IntakeBand) {
+  switch (band) {
+    case 'critically low':
+      return 'Critically Low';
+    case 'moderately low':
+      return 'Moderately Low';
+    case 'on target':
+      return 'On Target';
+    case 'moderately high':
+      return 'Moderately High';
+    case 'critically high':
+      return 'Critically High';
+    default:
+      return 'No Target';
+  }
 }
 
 export function buildGraphSeries(race: Race, checkins: Checkin[], metric: MetricKey) {

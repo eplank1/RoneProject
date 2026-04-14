@@ -1,15 +1,28 @@
 import { CheckinForm } from '@/components/CheckinForm';
 import { GraphCard } from '@/components/GraphCard';
 import { MetricCard } from '@/components/MetricCard';
-import { buildGraphSeries, getMetricRatePerHour, getMetricTotal, getStatusLabel, getThresholdStatus, summarizeRace } from '@/lib/analytics';
+import { buildGraphSeries, getBandLabel, getIntakeBand, getMetricRatePerHour, getMetricTotal, getThresholdRatio, summarizeRace } from '@/lib/analytics';
 import { METRICS } from '@/lib/constants';
 import { useRaceNutrition } from '@/lib/RaceNutritionContext';
 import { formatDateTime, formatDurationHours } from '@/lib/utils';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export default function RaceScreen() {
-  const { ready, activeRace, activeCheckins, thresholds, startRace, stopRace, addCheckin } = useRaceNutrition();
+  const {
+    ready,
+    refreshing,
+    activeRace,
+    activeCheckins,
+    thresholds,
+    foodItems,
+    startRace,
+    stopRace,
+    addCheckin,
+    addFoodItem,
+    refreshAsync,
+  } = useRaceNutrition();
+
   const [raceName, setRaceName] = useState('');
 
   const summary = useMemo(() => {
@@ -34,7 +47,14 @@ export default function RaceScreen() {
     }
   };
 
-  const onAddCheckin = (values: { calories: number; carbs: number; sodium: number; water: number; notes: string | null }) => {
+  const onAddCheckin = (values: {
+    calories: number;
+    carbs: number;
+    sodium: number;
+    water: number;
+    notes: string | null;
+    foodItemName: string | null;
+  }) => {
     try {
       addCheckin(values);
       Alert.alert('Check-in added', 'Your nutrition check-in has been saved.');
@@ -43,15 +63,39 @@ export default function RaceScreen() {
     }
   };
 
+  const onSaveFoodItem = (values: {
+    name: string;
+    calories: number;
+    carbs: number;
+    sodium: number;
+    water: number;
+  }) => {
+    try {
+      addFoodItem(values);
+    } catch (error) {
+      Alert.alert('Unable to save food item', error instanceof Error ? error.message : 'Unknown error');
+    }
+  };
+
   if (!ready) {
     return <View style={styles.center}><Text>Loading...</Text></View>;
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshAsync} />}
+    >
       <View style={styles.hero}>
-        <Text style={styles.title}>Race Nutrition</Text>
-        <Text style={styles.subtitle}>Track nutrition during active races and compare intake rates to hourly thresholds.</Text>
+        <View style={styles.heroHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>Race Nutrition</Text>
+            <Text style={styles.subtitle}>Track race fueling, saved foods, and threshold performance.</Text>
+          </View>
+          <Pressable style={styles.refreshButton} onPress={refreshAsync}>
+            <Text style={styles.refreshButtonText}>Refresh</Text>
+          </Pressable>
+        </View>
       </View>
 
       {!activeRace ? (
@@ -82,25 +126,31 @@ export default function RaceScreen() {
             {METRICS.map((metric) => {
               const rate = getMetricRatePerHour(activeRace, activeCheckins, metric.key);
               const total = getMetricTotal(activeCheckins, metric.key);
-              const status = getThresholdStatus(rate, metric.key, thresholds);
+              const ratio = getThresholdRatio(rate, metric.key, thresholds);
+              const band = getIntakeBand(rate, metric.key, thresholds);
+
               return (
                 <MetricCard
                   key={metric.key}
                   title={metric.label}
                   value={`${total} ${metric.unit}`}
-                  subtitle={`${rate} ${metric.unit}/hr • ${getStatusLabel(status)}`}
-                  status={status}
+                  subtitle={`${rate} ${metric.unit}/hr${ratio !== null ? ` • ratio ${ratio}` : ''}`}
+                  band={band}
                 />
               );
             })}
           </View>
 
-          <CheckinForm onSubmit={onAddCheckin} />
+          <CheckinForm
+            foodItems={foodItems}
+            onSubmit={onAddCheckin}
+            onSaveFoodItem={onSaveFoodItem}
+          />
 
           {METRICS.map((metric) => (
             <GraphCard
               key={metric.key}
-              title={metric.label}
+              title={`${metric.label} — ${getBandLabel(getIntakeBand(getMetricRatePerHour(activeRace, activeCheckins, metric.key), metric.key, thresholds))}`}
               unit={metric.unit}
               data={buildGraphSeries(activeRace, activeCheckins, metric.key)}
             />
@@ -125,6 +175,11 @@ const styles = StyleSheet.create({
   hero: {
     marginBottom: 14,
   },
+  heroHeader: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+  },
   title: {
     fontSize: 28,
     fontWeight: '900',
@@ -134,6 +189,16 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 14,
     color: '#4b5563',
+  },
+  refreshButton: {
+    backgroundColor: '#e5e7eb',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  refreshButtonText: {
+    color: '#111827',
+    fontWeight: '800',
   },
   card: {
     backgroundColor: '#fff',

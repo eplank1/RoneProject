@@ -26,6 +26,17 @@ export type Checkin = {
   sodium: number;
   water: number;
   notes: string | null;
+  foodItemName: string | null;
+};
+
+export type FoodItem = {
+  id: string;
+  name: string;
+  calories: number;
+  carbs: number;
+  sodium: number;
+  water: number;
+  createdAt: string;
 };
 
 export type RaceWithCheckins = {
@@ -40,3 +51,11 @@ export type RaceSummary = {
   totalWater: number;
   durationHours: number;
 };
+
+export type IntakeBand = 
+| 'critically low'
+| 'moderately low'
+| 'on target'
+| 'moderately high'
+| 'critically high'
+| 'no target';

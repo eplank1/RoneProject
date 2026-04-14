@@ -3,7 +3,7 @@ import { useRaceNutrition } from '@/lib/RaceNutritionContext';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function HistoryScreen() {
-  const { ready, historyWithCheckins, thresholds } = useRaceNutrition();
+  const { ready, historyWithCheckins, thresholds, removeRace } = useRaceNutrition();
 
   if (!ready) {
     return <View style={styles.center}><Text>Loading...</Text></View>;
@@ -12,7 +12,7 @@ export default function HistoryScreen() {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.title}>Past Races</Text>
-      <Text style={styles.subtitle}>Review totals, duration, and hourly intake range status for previous races.</Text>
+      <Text style={styles.subtitle}>Review totals, duration, threshold status, and delete saved races.</Text>
 
       {historyWithCheckins.length === 0 ? (
         <View style={styles.emptyCard}>
@@ -21,7 +21,13 @@ export default function HistoryScreen() {
         </View>
       ) : (
         historyWithCheckins.map(({ race, checkins }) => (
-          <RaceSummaryCard key={race.id} race={race} checkins={checkins} thresholds={thresholds} />
+          <RaceSummaryCard
+            key={race.id}
+            race={race}
+            checkins={checkins}
+            thresholds={thresholds}
+            onDelete={removeRace}
+          />
         ))
       )}
     </ScrollView>

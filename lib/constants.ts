@@ -13,3 +13,12 @@ export const DEFAULT_THRESHOLDS: Thresholds = {
   sodium: { minPerHour: 0, maxPerHour: 1500 },
   water: { minPerHour: 0, maxPerHour: 60 },
 };
+
+export const THRESHOLD_BANDS = {
+  CRITICALLY_LOW: 0.7,
+  MODERATELY_LOW: 0.9,
+  ON_TARGET: 1.0,
+  MODERATELY_HIGH: 1.1,
+  CRITICALLY_HIGH: 1.3,
+  NO_TARGET: null,
+};

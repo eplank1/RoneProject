@@ -1,21 +1,39 @@
+import { getBandLabel, getIntakeBand, getMetricRatePerHour, summarizeRace } from '@/lib/analytics';
 import { METRICS } from '@/lib/constants';
 import { formatDateTime, formatDurationHours } from '@/lib/utils';
-import { summarizeRace, getMetricRatePerHour, getThresholdStatus, getStatusLabel } from '@/lib/analytics';
 import { Checkin, Race, Thresholds } from '@/types/models';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 type Props = {
   race: Race;
   checkins: Checkin[];
   thresholds: Thresholds;
+  onDelete: (raceId: string) => void;
 };
 
-export function RaceSummaryCard({ race, checkins, thresholds }: Props) {
+export function RaceSummaryCard({ race, checkins, thresholds, onDelete }: Props) {
   const summary = summarizeRace(race, checkins);
+
+  const confirmDelete = () => {
+    Alert.alert(
+      'Delete race',
+      `Are you sure you want to delete "${race.name}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => onDelete(race.id) },
+      ],
+    );
+  };
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>{race.name}</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>{race.name}</Text>
+        <Pressable style={styles.deleteButton} onPress={confirmDelete}>
+          <Text style={styles.deleteButtonText}>Delete</Text>
+        </Pressable>
+      </View>
+
       <Text style={styles.meta}>Started: {formatDateTime(race.startTime)}</Text>
       <Text style={styles.meta}>Ended: {formatDateTime(race.endTime)}</Text>
       <Text style={styles.meta}>Duration: {formatDurationHours(summary.durationHours)}</Text>
@@ -31,7 +49,7 @@ export function RaceSummaryCard({ race, checkins, thresholds }: Props) {
           summary.totalWater;
 
         const rate = getMetricRatePerHour(race, checkins, metric.key);
-        const status = getThresholdStatus(rate, metric.key, thresholds);
+        const band = getIntakeBand(rate, metric.key, thresholds);
 
         return (
           <View key={metric.key} style={styles.metricRow}>
@@ -41,13 +59,32 @@ export function RaceSummaryCard({ race, checkins, thresholds }: Props) {
             </View>
             <View style={styles.metricRight}>
               <Text style={styles.rate}>{rate} {metric.unit}/hr</Text>
-              <Text style={[styles.badge, status === 'low' && styles.low, status === 'high' && styles.high]}>{getStatusLabel(status)}</Text>
+              <Text style={[styles.badge, getBadgeStyle(band)]}>{getBandLabel(band)}</Text>
             </View>
           </View>
         );
       })}
     </View>
   );
+}
+
+function getBadgeStyle(
+  band: 'critically low' | 'moderately low' | 'on target' | 'moderately high' | 'critically high' | 'no target'
+) {
+  switch (band) {
+    case 'critically low':
+      return styles.badgeCriticallyLow;
+    case 'moderately low':
+      return styles.badgeModeratelyLow;
+    case 'on target':
+      return styles.badgeOnTarget;
+    case 'moderately high':
+      return styles.badgeModeratelyHigh;
+    case 'critically high':
+      return styles.badgeCriticallyHigh;
+    default:
+      return styles.badgeNoTarget;
+  }
 }
 
 const styles = StyleSheet.create({
@@ -59,11 +96,29 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     marginBottom: 14,
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
   title: {
     fontSize: 20,
     fontWeight: '800',
     color: '#111827',
-    marginBottom: 8,
+    flex: 1,
+  },
+  deleteButton: {
+    backgroundColor: '#fee2e2',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  deleteButtonText: {
+    color: '#991b1b',
+    fontWeight: '800',
+    fontSize: 12,
   },
   meta: {
     fontSize: 13,
@@ -103,19 +158,34 @@ const styles = StyleSheet.create({
   },
   badge: {
     fontSize: 12,
-    color: '#166534',
-    backgroundColor: '#dcfce7',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
     overflow: 'hidden',
+    fontWeight: '800',
   },
-  low: {
+  badgeNoTarget: {
+    color: '#374151',
+    backgroundColor: '#e5e7eb',
+  },
+  badgeCriticallyLow: {
+    color: '#fff',
+    backgroundColor: '#b91c1c',
+  },
+  badgeModeratelyLow: {
     color: '#92400e',
-    backgroundColor: '#fef3c7',
+    backgroundColor: '#fde68a',
   },
-  high: {
-    color: '#991b1b',
-    backgroundColor: '#fee2e2',
+  badgeOnTarget: {
+    color: '#166534',
+    backgroundColor: '#bbf7d0',
+  },
+  badgeModeratelyHigh: {
+    color: '#9a3412',
+    backgroundColor: '#fed7aa',
+  },
+  badgeCriticallyHigh: {
+    color: '#fff',
+    backgroundColor: '#7f1d1d',
   },
 });

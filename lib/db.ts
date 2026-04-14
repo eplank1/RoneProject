@@ -1,4 +1,4 @@
-import { Checkin, Race, Thresholds } from '@/types/models';
+import { Checkin, FoodItem, Race, Thresholds } from '@/types/models';
 import * as SQLite from 'expo-sqlite';
 import { DEFAULT_THRESHOLDS } from './constants';
 
@@ -25,6 +25,7 @@ export function initializeDatabase() {
       sodium REAL NOT NULL,
       water REAL NOT NULL,
       notes TEXT,
+      food_item_name TEXT,
       FOREIGN KEY (race_id) REFERENCES races(id)
     );
 
@@ -39,7 +40,21 @@ export function initializeDatabase() {
       water_min_per_hour REAL,
       water_max_per_hour REAL
     );
+
+    CREATE TABLE IF NOT EXISTS food_items (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      calories REAL NOT NULL,
+      carbs REAL NOT NULL,
+      sodium REAL NOT NULL,
+      water REAL NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `);
+
+  try {
+    db.execSync(`ALTER TABLE checkins ADD COLUMN food_item_name TEXT;`);
+  } catch {}
 
   const row = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM thresholds');
   if (!row || row.count === 0) {
@@ -94,7 +109,7 @@ export function getAllRaces(): Race[] {
 
 export function getCheckinsForRace(raceId: string): Checkin[] {
   const rows = db.getAllSync<any>(
-    `SELECT id, race_id, timestamp, calories, carbs, sodium, water, notes
+    `SELECT id, race_id, timestamp, calories, carbs, sodium, water, notes, food_item_name
      FROM checkins
      WHERE race_id = ?
      ORDER BY timestamp ASC`,
@@ -121,10 +136,15 @@ export function completeRace(raceId: string, endTime: string) {
   );
 }
 
+export function deleteRaceById(raceId: string) {
+  db.runSync(`DELETE FROM checkins WHERE race_id = ?`, [raceId]);
+  db.runSync(`DELETE FROM races WHERE id = ?`, [raceId]);
+}
+
 export function createCheckin(checkin: Checkin) {
   db.runSync(
-    `INSERT INTO checkins (id, race_id, timestamp, calories, carbs, sodium, water, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO checkins (id, race_id, timestamp, calories, carbs, sodium, water, notes, food_item_name)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       checkin.id,
       checkin.raceId,
@@ -134,6 +154,7 @@ export function createCheckin(checkin: Checkin) {
       checkin.sodium,
       checkin.water,
       checkin.notes,
+      checkin.foodItemName,
     ],
   );
 }
@@ -191,6 +212,36 @@ export function saveThresholds(thresholds: Thresholds) {
   );
 }
 
+export function getFoodItems(): FoodItem[] {
+  const rows = db.getAllSync<any>(
+    `SELECT id, name, calories, carbs, sodium, water, created_at
+     FROM food_items
+     ORDER BY LOWER(name) ASC, created_at DESC`,
+  );
+  return rows.map(mapFoodItem);
+}
+
+export function createFoodItem(item: FoodItem) {
+  const existing = db.getFirstSync<any>(
+    `SELECT id FROM food_items
+     WHERE LOWER(name) = LOWER(?)
+       AND calories = ?
+       AND carbs = ?
+       AND sodium = ?
+       AND water = ?
+     LIMIT 1`,
+    [item.name, item.calories, item.carbs, item.sodium, item.water],
+  );
+
+  if (existing) return;
+
+  db.runSync(
+    `INSERT INTO food_items (id, name, calories, carbs, sodium, water, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [item.id, item.name, item.calories, item.carbs, item.sodium, item.water, item.createdAt],
+  );
+}
+
 function mapRace(row: any): Race {
   return {
     id: row.id,
@@ -211,6 +262,19 @@ function mapCheckin(row: any): Checkin {
     sodium: Number(row.sodium),
     water: Number(row.water),
     notes: row.notes,
+    foodItemName: row.food_item_name ?? null,
+  };
+}
+
+function mapFoodItem(row: any): FoodItem {
+  return {
+    id: row.id,
+    name: row.name,
+    calories: Number(row.calories),
+    carbs: Number(row.carbs),
+    sodium: Number(row.sodium),
+    water: Number(row.water),
+    createdAt: row.created_at,
   };
 }
 

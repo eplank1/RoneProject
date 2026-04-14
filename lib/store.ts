@@ -1,16 +1,19 @@
+import { Checkin, FoodItem, Race, Thresholds } from '@/types/models';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   completeRace,
   createCheckin,
+  createFoodItem,
   createRace,
+  deleteRaceById,
   getActiveRace,
   getAllRaces,
   getCheckinsForRace,
+  getFoodItems,
   getThresholds,
   initializeDatabase,
   saveThresholds,
 } from './db';
-import { Checkin, Race, Thresholds } from '@/types/models';
 import { generateId } from './utils';
 
 export function useRaceNutritionStore() {
@@ -19,6 +22,8 @@ export function useRaceNutritionStore() {
   const [activeCheckins, setActiveCheckins] = useState<Checkin[]>([]);
   const [history, setHistory] = useState<Race[]>([]);
   const [thresholds, setThresholds] = useState<Thresholds>(getThresholdsSafe());
+  const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   const refresh = useCallback(() => {
     const nextActiveRace = getActiveRace();
@@ -26,7 +31,17 @@ export function useRaceNutritionStore() {
     setActiveCheckins(nextActiveRace ? getCheckinsForRace(nextActiveRace.id) : []);
     setHistory(getAllRaces().filter((race) => race.status === 'completed'));
     setThresholds(getThresholds());
+    setFoodItems(getFoodItems());
   }, []);
+
+  const refreshAsync = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refresh]);
 
   useEffect(() => {
     initializeDatabase();
@@ -72,6 +87,26 @@ export function useRaceNutritionStore() {
     [activeRace, refresh],
   );
 
+  const addFoodItem = useCallback(
+    (payload: Omit<FoodItem, 'id' | 'createdAt'>) => {
+      createFoodItem({
+        id: generateId('food'),
+        createdAt: new Date().toISOString(),
+        ...payload,
+      });
+      refresh();
+    },
+    [refresh],
+  );
+
+  const removeRace = useCallback(
+    (raceId: string) => {
+      deleteRaceById(raceId);
+      refresh();
+    },
+    [refresh],
+  );
+
   const updateThresholds = useCallback(
     (next: Thresholds) => {
       saveThresholds(next);
@@ -87,15 +122,20 @@ export function useRaceNutritionStore() {
 
   return {
     ready,
+    refreshing,
     activeRace,
     activeCheckins,
     history,
     historyWithCheckins,
     thresholds,
+    foodItems,
     refresh,
+    refreshAsync,
     startRace,
     stopRace,
     addCheckin,
+    addFoodItem,
+    removeRace,
     updateThresholds,
   };
 }
@@ -106,10 +146,10 @@ function getThresholdsSafe() {
     return getThresholds();
   } catch {
     return {
-      calories: { minPerHour: 0, maxPerHour: 400 },
-      carbs: { minPerHour: 0, maxPerHour: 120 },
-      sodium: { minPerHour: 0, maxPerHour: 1500 },
-      water: { minPerHour: 0, maxPerHour: 60 },
+      calories: { minPerHour: 200, maxPerHour: 300 },
+      carbs: { minPerHour: 30, maxPerHour: 60 },
+      sodium: { minPerHour: 300, maxPerHour: 700 },
+      water: { minPerHour: 12, maxPerHour: 28 },
     };
   }
 }
