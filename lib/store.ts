@@ -5,17 +5,26 @@ import {
   createCheckin,
   createFoodItem,
   createRace,
+  deleteFoodItem,
   deleteRaceById,
   getActiveRace,
   getAllRaces,
   getCheckinsForRace,
+  getCheckinsForRaceAscending,
   getFoodItems,
+  getRaceById,
   getThresholds,
   initializeDatabase,
   saveThresholds,
+  updateFoodItem,
 } from './db';
 import { generateId } from './utils';
 
+/**
+ * Main app store hook.
+ * Keeps the active race, saved history, thresholds, and food library in sync
+ * with SQLite so screens can stay simple.
+ */
 export function useRaceNutritionStore() {
   const [ready, setReady] = useState(false);
   const [activeRace, setActiveRace] = useState<Race | null>(null);
@@ -28,7 +37,7 @@ export function useRaceNutritionStore() {
   const refresh = useCallback(() => {
     const nextActiveRace = getActiveRace();
     setActiveRace(nextActiveRace);
-    setActiveCheckins(nextActiveRace ? getCheckinsForRace(nextActiveRace.id) : []);
+    setActiveCheckins(nextActiveRace ? getCheckinsForRaceAscending(nextActiveRace.id) : []);
     setHistory(getAllRaces().filter((race) => race.status === 'completed'));
     setThresholds(getThresholds());
     setFoodItems(getFoodItems());
@@ -62,6 +71,7 @@ export function useRaceNutritionStore() {
         endTime: null,
         status: 'active',
       });
+
       refresh();
     },
     [activeRace, refresh],
@@ -76,12 +86,14 @@ export function useRaceNutritionStore() {
   const addCheckin = useCallback(
     (payload: Omit<Checkin, 'id' | 'raceId' | 'timestamp'>) => {
       if (!activeRace) throw new Error('Start a race before adding a check-in.');
+
       createCheckin({
         id: generateId('checkin'),
         raceId: activeRace.id,
         timestamp: new Date().toISOString(),
         ...payload,
       });
+
       refresh();
     },
     [activeRace, refresh],
@@ -99,6 +111,26 @@ export function useRaceNutritionStore() {
     [refresh],
   );
 
+  const editFoodItem = useCallback(
+    (payload: FoodItem) => {
+      updateFoodItem(payload);
+      refresh();
+    },
+    [refresh],
+  );
+
+  const removeFoodItem = useCallback(
+    (id: string) => {
+      deleteFoodItem(id);
+      refresh();
+    },
+    [refresh],
+  );
+
+  const searchFoodItems = useCallback((query: string) => {
+    return getFoodItems(query);
+  }, []);
+
   const removeRace = useCallback(
     (raceId: string) => {
       deleteRaceById(raceId);
@@ -114,6 +146,16 @@ export function useRaceNutritionStore() {
     },
     [refresh],
   );
+
+  const getRaceDetails = useCallback((raceId: string) => {
+    const race = getRaceById(raceId);
+    if (!race) return null;
+
+    return {
+      race,
+      checkins: getCheckinsForRaceAscending(raceId),
+    };
+  }, []);
 
   const historyWithCheckins = useMemo(
     () => history.map((race) => ({ race, checkins: getCheckinsForRace(race.id) })),
@@ -135,8 +177,12 @@ export function useRaceNutritionStore() {
     stopRace,
     addCheckin,
     addFoodItem,
+    editFoodItem,
+    removeFoodItem,
+    searchFoodItems,
     removeRace,
     updateThresholds,
+    getRaceDetails,
   };
 }
 

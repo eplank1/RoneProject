@@ -39,11 +39,6 @@ export type FoodItem = {
   createdAt: string;
 };
 
-export type RaceWithCheckins = {
-  race: Race;
-  checkins: Checkin[];
-};
-
 export type RaceSummary = {
   totalCalories: number;
   totalCarbs: number;

@@ -1,18 +1,24 @@
 import { RaceSummaryCard } from '@/components/RaceSummaryCard';
 import { useRaceNutrition } from '@/lib/RaceNutritionContext';
+import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function HistoryScreen() {
   const { ready, historyWithCheckins, thresholds, removeRace } = useRaceNutrition();
+  const router = useRouter();
 
   if (!ready) {
-    return <View style={styles.center}><Text>Loading...</Text></View>;
+    return (
+      <View style={styles.center}>
+        <Text>Loading...</Text>
+      </View>
+    );
   }
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.title}>Past Races</Text>
-      <Text style={styles.subtitle}>Review totals, duration, threshold status, and delete saved races.</Text>
+      <Text style={styles.subtitle}>Review totals, open a saved race dashboard, or delete races.</Text>
 
       {historyWithCheckins.length === 0 ? (
         <View style={styles.emptyCard}>
@@ -27,6 +33,12 @@ export default function HistoryScreen() {
             checkins={checkins}
             thresholds={thresholds}
             onDelete={removeRace}
+            onOpen={(raceId) =>
+              router.push({
+                pathname: '/race-history/[id]',
+                params: { id: raceId },
+              })
+            }
           />
         ))
       )}

@@ -9,9 +9,15 @@ type Props = {
   checkins: Checkin[];
   thresholds: Thresholds;
   onDelete: (raceId: string) => void;
+  onOpen: (raceId: string) => void;
 };
 
-export function RaceSummaryCard({ race, checkins, thresholds, onDelete }: Props) {
+/**
+ * Card shown in History.
+ * Users can tap the race title area to open a read-only dashboard view,
+ * or delete the race entirely.
+ */
+export function RaceSummaryCard({ race, checkins, thresholds, onDelete, onOpen }: Props) {
   const summary = summarizeRace(race, checkins);
 
   const confirmDelete = () => {
@@ -28,7 +34,11 @@ export function RaceSummaryCard({ race, checkins, thresholds, onDelete }: Props)
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>{race.name}</Text>
+        <Pressable style={{ flex: 1 }} onPress={() => onOpen(race.id)}>
+          <Text style={styles.title}>{race.name}</Text>
+          <Text style={styles.linkHint}>Tap to view race dashboard</Text>
+        </Pressable>
+
         <Pressable style={styles.deleteButton} onPress={confirmDelete}>
           <Text style={styles.deleteButtonText}>Delete</Text>
         </Pressable>
@@ -48,7 +58,7 @@ export function RaceSummaryCard({ race, checkins, thresholds, onDelete }: Props)
           metric.key === 'sodium' ? summary.totalSodium :
           summary.totalWater;
 
-        const rate = getMetricRatePerHour(race, checkins, metric.key);
+        const rate = getMetricRatePerHour(race, [...checkins].reverse(), metric.key);
         const band = getIntakeBand(rate, metric.key, thresholds);
 
         return (
@@ -99,7 +109,7 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
     marginBottom: 8,
   },
@@ -108,6 +118,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#111827',
     flex: 1,
+  },
+  linkHint: {
+    marginTop: 4,
+    color: '#2563eb',
+    fontSize: 12,
+    fontWeight: '700',
   },
   deleteButton: {
     backgroundColor: '#fee2e2',

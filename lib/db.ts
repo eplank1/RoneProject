@@ -4,6 +4,11 @@ import { DEFAULT_THRESHOLDS } from './constants';
 
 export const db = SQLite.openDatabaseSync('race-nutrition.db');
 
+/**
+ * Sets up the local SQLite database and performs light-weight migrations.
+ * This runs on app start, and the ALTER TABLE calls are wrapped in try/catch
+ * so older installs can upgrade safely without crashing.
+ */
 export function initializeDatabase() {
   db.execSync(`
     PRAGMA journal_mode = WAL;
@@ -97,6 +102,18 @@ export function getActiveRace(): Race | null {
   return race ? mapRace(race) : null;
 }
 
+export function getRaceById(raceId: string): Race | null {
+  const race = db.getFirstSync<any>(
+    `SELECT id, name, start_time, end_time, status
+     FROM races
+     WHERE id = ?
+     LIMIT 1`,
+    [raceId],
+  );
+
+  return race ? mapRace(race) : null;
+}
+
 export function getAllRaces(): Race[] {
   const rows = db.getAllSync<any>(
     `SELECT id, name, start_time, end_time, status
@@ -108,6 +125,18 @@ export function getAllRaces(): Race[] {
 }
 
 export function getCheckinsForRace(raceId: string): Checkin[] {
+  const rows = db.getAllSync<any>(
+    `SELECT id, race_id, timestamp, calories, carbs, sodium, water, notes, food_item_name
+     FROM checkins
+     WHERE race_id = ?
+     ORDER BY timestamp DESC`,
+    [raceId],
+  );
+
+  return rows.map(mapCheckin);
+}
+
+export function getCheckinsForRaceAscending(raceId: string): Checkin[] {
   const rows = db.getAllSync<any>(
     `SELECT id, race_id, timestamp, calories, carbs, sodium, water, notes, food_item_name
      FROM checkins
@@ -212,12 +241,17 @@ export function saveThresholds(thresholds: Thresholds) {
   );
 }
 
-export function getFoodItems(): FoodItem[] {
+export function getFoodItems(search = ''): FoodItem[] {
+  const normalized = `%${search.trim().toLowerCase()}%`;
+
   const rows = db.getAllSync<any>(
     `SELECT id, name, calories, carbs, sodium, water, created_at
      FROM food_items
+     WHERE LOWER(name) LIKE ?
      ORDER BY LOWER(name) ASC, created_at DESC`,
+    [normalized],
   );
+
   return rows.map(mapFoodItem);
 }
 
@@ -240,6 +274,19 @@ export function createFoodItem(item: FoodItem) {
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [item.id, item.name, item.calories, item.carbs, item.sodium, item.water, item.createdAt],
   );
+}
+
+export function updateFoodItem(item: FoodItem) {
+  db.runSync(
+    `UPDATE food_items
+     SET name = ?, calories = ?, carbs = ?, sodium = ?, water = ?
+     WHERE id = ?`,
+    [item.name, item.calories, item.carbs, item.sodium, item.water, item.id],
+  );
+}
+
+export function deleteFoodItem(id: string) {
+  db.runSync(`DELETE FROM food_items WHERE id = ?`, [id]);
 }
 
 function mapRace(row: any): Race {

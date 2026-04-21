@@ -8,6 +8,10 @@ type Props = {
   band?: IntakeBand;
 };
 
+/**
+ * Reusable summary card for a single metric on the dashboard.
+ * The color and badge both reflect the athlete's current threshold band.
+ */
 export function MetricCard({ title, value, subtitle, band = 'no target' }: Props) {
   return (
     <View style={[styles.card, getBandStyle(band)]}>

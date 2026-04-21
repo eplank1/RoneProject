@@ -1,13 +1,28 @@
 import { CheckinForm } from '@/components/CheckinForm';
 import { GraphCard } from '@/components/GraphCard';
 import { MetricCard } from '@/components/MetricCard';
-import { buildGraphSeries, getBandLabel, getIntakeBand, getMetricRatePerHour, getMetricTotal, getThresholdRatio, summarizeRace } from '@/lib/analytics';
+import { PreviousCheckinsList } from '@/components/PreviousCheckinsList';
+import {
+  buildGraphSeries,
+  getBandLabel,
+  getIntakeBand,
+  getMetricRatePerHour,
+  getMetricTotal,
+  getThresholdRatio,
+  summarizeRace,
+} from '@/lib/analytics';
 import { METRICS } from '@/lib/constants';
 import { useRaceNutrition } from '@/lib/RaceNutritionContext';
 import { formatDateTime, formatDurationHours } from '@/lib/utils';
+import * as Haptics from 'expo-haptics';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+/**
+ * Main live race dashboard.
+ * This is where the athlete starts/stops races, adds check-ins,
+ * reviews graphs, and sees prior check-ins from the current race.
+ */
 export default function RaceScreen() {
   const {
     ready,
@@ -47,6 +62,15 @@ export default function RaceScreen() {
     }
   };
 
+  const onRefreshPress = async () => {
+    // Light haptic feedback gives the button a more responsive feel.
+    try {
+      await Haptics.selectionAsync();
+    } catch {}
+
+    await refreshAsync();
+  };
+
   const onAddCheckin = (values: {
     calories: number;
     carbs: number;
@@ -78,7 +102,11 @@ export default function RaceScreen() {
   };
 
   if (!ready) {
-    return <View style={styles.center}><Text>Loading...</Text></View>;
+    return (
+      <View style={styles.center}>
+        <Text>Loading...</Text>
+      </View>
+    );
   }
 
   return (
@@ -90,9 +118,10 @@ export default function RaceScreen() {
         <View style={styles.heroHeader}>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>Race Nutrition</Text>
-            <Text style={styles.subtitle}>Track race fueling, saved foods, and threshold performance.</Text>
+            <Text style={styles.subtitle}>Track race fueling, saved foods, threshold performance, and previous check-ins.</Text>
           </View>
-          <Pressable style={styles.refreshButton} onPress={refreshAsync}>
+
+          <Pressable style={styles.refreshButton} onPress={onRefreshPress}>
             <Text style={styles.refreshButtonText}>Refresh</Text>
           </Pressable>
         </View>
@@ -155,6 +184,8 @@ export default function RaceScreen() {
               data={buildGraphSeries(activeRace, activeCheckins, metric.key)}
             />
           ))}
+
+          <PreviousCheckinsList checkins={activeCheckins} />
         </>
       )}
     </ScrollView>

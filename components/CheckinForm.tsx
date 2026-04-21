@@ -40,6 +40,10 @@ const INITIAL = {
   saveForLater: false,
 };
 
+/**
+ * Check-in form used on the live race dashboard.
+ * Users can either type values manually or tap a saved food item to autofill.
+ */
 export function CheckinForm({ foodItems, onSubmit, onSaveFoodItem }: Props) {
   const [form, setForm] = useState(INITIAL);
 
@@ -131,7 +135,7 @@ export function CheckinForm({ foodItems, onSubmit, onSaveFoodItem }: Props) {
       <View style={styles.switchRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.switchTitle}>Save as reusable food item</Text>
-          <Text style={styles.switchSubtitle}>Adds this food item to your future quick-select list.</Text>
+          <Text style={styles.switchSubtitle}>Adds this item to your food library for future races.</Text>
         </View>
         <Switch
           value={form.saveForLater}
