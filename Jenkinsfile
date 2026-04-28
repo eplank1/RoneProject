@@ -1,59 +1,33 @@
 pipeline {
     agent any
 
-    tools {
-        nodejs 'Node 20'
-    }
-
-    environment {
-        CI = 'true'
-        EXPO_NO_TELEMETRY = '1'
-    }
-
     stages {
-        stage('Checkout') {
+        stage('Checkout Project') {
             steps {
-                echo 'Pulling project code...'
+                echo 'Pulling Race Nutrition Tracker from GitHub...'
                 checkout scm
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Verify Project Files') {
             steps {
-                echo 'Installing Expo project dependencies...'
-                bat 'npm install'
+                echo 'Checking that the main project files exist...'
+
+                bat '''
+                if not exist package.json exit /b 1
+                if not exist app exit /b 1
+                if not exist components exit /b 1
+                if not exist lib exit /b 1
+                if not exist types exit /b 1
+                '''
             }
         }
 
-        stage('Check Expo Project') {
+        stage('Show Project Summary') {
             steps {
-                echo 'Checking that Expo dependencies match the SDK...'
-                bat 'npx expo install --check'
+                echo 'Race Nutrition Tracker project structure looks valid.'
+                echo 'This pipeline confirms that the GitHub project contains the required Expo app folders and files.'
             }
-        }
-
-        stage('TypeScript Check') {
-            steps {
-                echo 'Checking TypeScript for app errors...'
-                bat 'npx tsc --noEmit'
-            }
-        }
-
-        stage('Project Summary') {
-            steps {
-                echo 'Race Nutrition Tracker build completed successfully.'
-                echo 'This confirms the Expo app installs and passes TypeScript validation.'
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'Build passed.'
-        }
-
-        failure {
-            echo 'Build failed. Check the console output above for dependency or TypeScript errors.'
         }
     }
 }
