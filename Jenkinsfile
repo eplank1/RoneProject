@@ -13,21 +13,31 @@ pipeline {
             steps {
                 echo 'Checking that the main project files exist...'
 
-                bat '''
-                if not exist package.json exit /b 1
-                if not exist app exit /b 1
-                if not exist components exit /b 1
-                if not exist lib exit /b 1
-                if not exist types exit /b 1
+                sh '''
+                test -f package.json
+                test -d app
+                test -d components
+                test -d lib
+                test -d types
                 '''
             }
         }
 
-        stage('Show Project Summary') {
+        stage('Project Summary') {
             steps {
                 echo 'Race Nutrition Tracker project structure looks valid.'
-                echo 'This pipeline confirms that the GitHub project contains the required Expo app folders and files.'
+                echo 'Jenkins confirmed the project folders exist.'
             }
+        }
+    }
+
+    post {
+        success {
+            echo 'Project health check passed.'
+        }
+
+        failure {
+            echo 'Project health check failed.'
         }
     }
 }
